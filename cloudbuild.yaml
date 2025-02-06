@@ -2,20 +2,42 @@ options:
   logging: CLOUD_LOGGING_ONLY
 
 steps:
+# Enable required APIs first
+- name: 'gcr.io/cloud-builders/gcloud'
+  id: 'enable-apis'
+  args:
+  - 'services'
+  - 'enable'
+  - 'container.googleapis.com'
+  - 'compute.googleapis.com'
+  - 'cloudbuild.googleapis.com'
+  - 'servicenetworking.googleapis.com'
+
+# Add wait step
+- name: 'gcr.io/cloud-builders/gcloud'
+  id: 'wait-for-api'
+  entrypoint: 'sleep'
+  args: ['90']
+  waitFor: ['enable-apis']
+
 - name: 'ubuntu'
   args: ['ls', '-la']
+  waitFor: ['wait-for-api']
 
 # Create VPC Network
 - name: 'gcr.io/cloud-builders/gcloud'
+  id: 'create-vpc'
   args:
   - compute
   - networks
   - create
   - ${_VPC_NAME}
   - --subnet-mode=custom
+  waitFor: ['wait-for-api']
 
 # Create Private Subnet
 - name: 'gcr.io/cloud-builders/gcloud'
+  id: 'create-subnet'
   args:
   - compute
   - networks
@@ -26,9 +48,11 @@ steps:
   - --region=${_REGION}
   - --range=10.0.1.0/24
   - --enable-private-ip-google-access
+  waitFor: ['create-vpc']
 
 # Create Cloud Router
 - name: 'gcr.io/cloud-builders/gcloud'
+  id: 'create-router'
   args:
   - compute
   - routers
@@ -36,9 +60,11 @@ steps:
   - cloud-nat-router
   - --network=${_VPC_NAME}
   - --region=${_REGION}
+  waitFor: ['create-subnet']
 
 # Create Cloud NAT
 - name: 'gcr.io/cloud-builders/gcloud'
+  id: 'create-nat'
   args:
   - compute
   - routers
@@ -49,9 +75,11 @@ steps:
   - --region=${_REGION}
   - --nat-all-subnet-ip-ranges
   - --auto-allocate-nat-external-ips
+  waitFor: ['create-router']
 
 # Create GKE Cluster
 - name: 'gcr.io/cloud-builders/gcloud'
+  id: 'create-gke'
   args:
   - container
   - clusters
@@ -71,14 +99,19 @@ steps:
   - --max-nodes=5
   - --node-locations=${_REGION}-a,${_REGION}-b
   - --scopes=https://www.googleapis.com/auth/cloud-platform
+  waitFor: ['create-nat']
 
 # Build Docker image
 - name: 'gcr.io/cloud-builders/docker'
+  id: 'build-image'
   args: ['build', '-t', 'gcr.io/$PROJECT_ID/fastapi-app:$COMMIT_SHA', '-f', 'Dockerfile', '.']
+  waitFor: ['create-gke']
 
 # Push Docker image
 - name: 'gcr.io/cloud-builders/docker'
+  id: 'push-image'
   args: ['push', 'gcr.io/$PROJECT_ID/fastapi-app:$COMMIT_SHA']
+  waitFor: ['build-image']
 
 # Deploy to GKE
 - name: 'gcr.io/cloud-builders/gke-deploy'
@@ -88,6 +121,7 @@ steps:
   - --location=${_REGION}
   - --cluster=${_CLUSTER_NAME}
   - --image=gcr.io/$PROJECT_ID/fastapi-app:$COMMIT_SHA
+  waitFor: ['push-image']
 
 images:
 - 'gcr.io/$PROJECT_ID/fastapi-app:$COMMIT_SHA'
@@ -98,43 +132,3 @@ substitutions:
   _VPC_NAME: fastapi-vpc
 
 timeout: '3600s'
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# options:
-#   logging: CLOUD_LOGGING_ONLY
-
-# steps:
-# - name: 'ubuntu'
-#   args: ['ls', '-la']  # This will list all files in the workspace
-
-# - name: 'gcr.io/cloud-builders/docker'
-#   args: ['build', '-t', 'gcr.io/$PROJECT_ID/fastapi-app:$COMMIT_SHA', '-f', 'Dockerfile', '.']
-
-# - name: 'gcr.io/cloud-builders/docker'
-#   args: ['push', 'gcr.io/$PROJECT_ID/fastapi-app:$COMMIT_SHA']
-
-# - name: 'gcr.io/cloud-builders/gke-deploy'
-#   args:
-#   - run
-#   - --filename=kubernetes/
-#   - --location=${_REGION}
-#   - --cluster=${_CLUSTER_NAME}
-#   - --image=gcr.io/$PROJECT_ID/fastapi-app:$COMMIT_SHA
-
-# images:
-# - 'gcr.io/$PROJECT_ID/fastapi-app:$COMMIT_SHA'

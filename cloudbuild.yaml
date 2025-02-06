@@ -24,60 +24,7 @@ steps:
   args: ['ls', '-la']
   waitFor: ['wait-for-api']
 
-# Create VPC Network
-- name: 'gcr.io/cloud-builders/gcloud'
-  id: 'create-vpc'
-  args:
-  - compute
-  - networks
-  - create
-  - ${_VPC_NAME}
-  - --subnet-mode=custom
-  waitFor: ['wait-for-api']
-
-# Create Private Subnet
-- name: 'gcr.io/cloud-builders/gcloud'
-  id: 'create-subnet'
-  args:
-  - compute
-  - networks
-  - subnets
-  - create
-  - private-subnet
-  - --network=${_VPC_NAME}
-  - --region=${_REGION}
-  - --range=10.0.1.0/24
-  - --enable-private-ip-google-access
-  waitFor: ['create-vpc']
-
-# Create Cloud Router
-- name: 'gcr.io/cloud-builders/gcloud'
-  id: 'create-router'
-  args:
-  - compute
-  - routers
-  - create
-  - cloud-nat-router
-  - --network=${_VPC_NAME}
-  - --region=${_REGION}
-  waitFor: ['create-subnet']
-
-# Create Cloud NAT
-- name: 'gcr.io/cloud-builders/gcloud'
-  id: 'create-nat'
-  args:
-  - compute
-  - routers
-  - nats
-  - create
-  - cloud-nat
-  - --router=cloud-nat-router
-  - --region=${_REGION}
-  - --nat-all-subnet-ip-ranges
-  - --auto-allocate-nat-external-ips
-  waitFor: ['create-router']
-
-# Create GKE Cluster
+# Create GKE Cluster (using existing VPC)
 - name: 'gcr.io/cloud-builders/gcloud'
   id: 'create-gke'
   args:
@@ -99,7 +46,7 @@ steps:
   - --max-nodes=5
   - --node-locations=${_REGION}-a,${_REGION}-b
   - --scopes=https://www.googleapis.com/auth/cloud-platform
-  waitFor: ['create-nat']
+  waitFor: ['wait-for-api']
 
 # Build Docker image
 - name: 'gcr.io/cloud-builders/docker'

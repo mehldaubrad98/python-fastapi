@@ -2,8 +2,11 @@ options:
   logging: CLOUD_LOGGING_ONLY
 
 steps:
+- name: 'ubuntu'
+  args: ['ls', '-la']  # This will list all files in the workspace
+
 - name: 'gcr.io/cloud-builders/docker'
-  args: ['build', '-t', 'gcr.io/$PROJECT_ID/fastapi-app:$COMMIT_SHA', '.']
+  args: ['build', '-t', 'gcr.io/$PROJECT_ID/fastapi-app:$COMMIT_SHA', '-f', 'Dockerfile', '.']
 
 - name: 'gcr.io/cloud-builders/docker'
   args: ['push', 'gcr.io/$PROJECT_ID/fastapi-app:$COMMIT_SHA']

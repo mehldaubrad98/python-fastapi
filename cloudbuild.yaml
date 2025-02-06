@@ -20,14 +20,14 @@ steps:
 # Terraform plan
 - name: 'hashicorp/terraform:1.0.0'
   id: 'tf-plan'
-  args: ['plan', '-var-file=terraform.tfvars']
+  args: ['plan']  # Removed -var-file argument
   dir: 'terraform'
   waitFor: ['tf-init']
 
 # Terraform apply
 - name: 'hashicorp/terraform:1.0.0'
   id: 'tf-apply'
-  args: ['apply', '-auto-approve', '-var-file=terraform.tfvars']
+  args: ['apply', '-auto-approve']  # Removed -var-file argument
   dir: 'terraform'
   waitFor: ['tf-plan']
 

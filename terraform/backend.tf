@@ -1,7 +1,7 @@
-# backend.tf
-terraform {
-  backend "gcs" {
-    bucket = "bred-bucket111"
-    prefix = "terraform/state"
-  }
-}
+# # backend.tf
+# terraform {
+#   backend "gcs" {
+#     bucket = "bred-bucket111"
+#     prefix = "terraform/state"
+#   }
+# }

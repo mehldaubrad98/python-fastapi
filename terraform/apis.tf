@@ -1,13 +1,16 @@
 # apis.tf
 resource "google_project_service" "services" {
   for_each = toset([
-    "container.googleapis.com",
-    "cloudbuild.googleapis.com",
+    "container.googleapis.com",  # GKE API
+    "cloudbuild.googleapis.com", # Cloud Build API
     "cloudresourcemanager.googleapis.com",
-    "compute.googleapis.com",
+    "compute.googleapis.com", # Compute Engine API
     "iam.googleapis.com"
   ])
-  
+
+  project = var.project_id
   service = each.key
-  disable_on_destroy = false
+
+  disable_dependent_services = true
+  disable_on_destroy         = false
 }

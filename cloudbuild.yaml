@@ -3,14 +3,84 @@ options:
 
 steps:
 - name: 'ubuntu'
-  args: ['ls', '-la']  # This will list all files in the workspace
+  args: ['ls', '-la']
 
+# Create VPC Network
+- name: 'gcr.io/cloud-builders/gcloud'
+  args:
+  - compute
+  - networks
+  - create
+  - ${_VPC_NAME}
+  - --subnet-mode=custom
+
+# Create Private Subnet
+- name: 'gcr.io/cloud-builders/gcloud'
+  args:
+  - compute
+  - networks
+  - subnets
+  - create
+  - private-subnet
+  - --network=${_VPC_NAME}
+  - --region=${_REGION}
+  - --range=10.0.1.0/24
+  - --enable-private-ip-google-access
+
+# Create Cloud Router
+- name: 'gcr.io/cloud-builders/gcloud'
+  args:
+  - compute
+  - routers
+  - create
+  - cloud-nat-router
+  - --network=${_VPC_NAME}
+  - --region=${_REGION}
+
+# Create Cloud NAT
+- name: 'gcr.io/cloud-builders/gcloud'
+  args:
+  - compute
+  - routers
+  - nats
+  - create
+  - cloud-nat
+  - --router=cloud-nat-router
+  - --region=${_REGION}
+  - --nat-all-subnet-ip-ranges
+  - --auto-allocate-nat-external-ips
+
+# Create GKE Cluster
+- name: 'gcr.io/cloud-builders/gcloud'
+  args:
+  - container
+  - clusters
+  - create
+  - ${_CLUSTER_NAME}
+  - --region=${_REGION}
+  - --network=${_VPC_NAME}
+  - --subnetwork=private-subnet
+  - --enable-private-nodes
+  - --master-ipv4-cidr=172.16.0.0/28
+  - --enable-ip-alias
+  - --num-nodes=3
+  - --machine-type=e2-medium
+  - --disk-size=100
+  - --enable-autoscaling
+  - --min-nodes=1
+  - --max-nodes=5
+  - --node-locations=${_REGION}-a,${_REGION}-b
+  - --scopes=https://www.googleapis.com/auth/cloud-platform
+
+# Build Docker image
 - name: 'gcr.io/cloud-builders/docker'
   args: ['build', '-t', 'gcr.io/$PROJECT_ID/fastapi-app:$COMMIT_SHA', '-f', 'Dockerfile', '.']
 
+# Push Docker image
 - name: 'gcr.io/cloud-builders/docker'
   args: ['push', 'gcr.io/$PROJECT_ID/fastapi-app:$COMMIT_SHA']
 
+# Deploy to GKE
 - name: 'gcr.io/cloud-builders/gke-deploy'
   args:
   - run
@@ -21,3 +91,50 @@ steps:
 
 images:
 - 'gcr.io/$PROJECT_ID/fastapi-app:$COMMIT_SHA'
+
+substitutions:
+  _REGION: us-central1
+  _CLUSTER_NAME: fastapi-gke-cluster
+  _VPC_NAME: fastapi-vpc
+
+timeout: '3600s'
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# options:
+#   logging: CLOUD_LOGGING_ONLY
+
+# steps:
+# - name: 'ubuntu'
+#   args: ['ls', '-la']  # This will list all files in the workspace
+
+# - name: 'gcr.io/cloud-builders/docker'
+#   args: ['build', '-t', 'gcr.io/$PROJECT_ID/fastapi-app:$COMMIT_SHA', '-f', 'Dockerfile', '.']
+
+# - name: 'gcr.io/cloud-builders/docker'
+#   args: ['push', 'gcr.io/$PROJECT_ID/fastapi-app:$COMMIT_SHA']
+
+# - name: 'gcr.io/cloud-builders/gke-deploy'
+#   args:
+#   - run
+#   - --filename=kubernetes/
+#   - --location=${_REGION}
+#   - --cluster=${_CLUSTER_NAME}
+#   - --image=gcr.io/$PROJECT_ID/fastapi-app:$COMMIT_SHA
+
+# images:
+# - 'gcr.io/$PROJECT_ID/fastapi-app:$COMMIT_SHA'

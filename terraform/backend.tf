@@ -1,12 +1,7 @@
 # backend.tf
-# terraform {
-#   backend "gcs" {
-#     bucket = "${var.project_id}-terraform-state"
-#     prefix = "terraform/state"
-#   }
-# }
-
-# backend.tf
 terraform {
-  backend "gcs" {}
+  backend "gcs" {
+    bucket = "bradmeh-tf-state-staging-terraform-state"
+    prefix = "terraform/state"
+  }
 }

@@ -7,10 +7,14 @@ steps:
   id: 'list-files'
   args: ['ls', '-la']
 
-# Terraform init
+# Terraform init with backend config
 - name: 'hashicorp/terraform:1.0.0'
   id: 'tf-init'
-  args: ['init']
+  args: [
+    'init',
+    '-backend-config=bucket=$PROJECT_ID-terraform-state',
+    '-backend-config=prefix=terraform/state'
+  ]
   dir: 'terraform'
 
 # Terraform plan
